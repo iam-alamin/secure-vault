@@ -47,7 +47,7 @@ const App = () => {
   if (checking) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-primary animate-pulse font-mono text-lg">Initializing SecureVault...</div>
+        <div className="text-primary animate-pulse font-mono text-lg">Initializing AlamiNVault...</div>
       </div>
     );
   }

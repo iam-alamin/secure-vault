@@ -80,7 +80,7 @@ const MasterLogin = ({ isFirstRun, onAuthenticated }: MasterLoginProps) => {
               <div className="absolute -inset-4 bg-primary/10 rounded-full blur-xl animate-pulse" />
             </div>
           </div>
-          <h1 className="text-3xl font-bold text-glow mb-2">SecureVault</h1>
+          <h1 className="text-3xl font-bold text-glow mb-2">AlamiNVault</h1>
           <p className="text-muted-foreground text-sm">
             {isFirstRun
               ? "Create your master password to initialize the vault"

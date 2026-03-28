@@ -48,7 +48,7 @@ const Index = ({ onLogout }: IndexProps) => {
           <div className="flex flex-col sm:flex-row justify-between items-center text-sm text-muted-foreground gap-2">
             <div className="flex items-center space-x-4">
               <span className="text-primary pulse-glow">◉</span>
-              <span>SecureVault v2.0</span>
+              <span>AlamiNVault v2.0</span>
             </div>
             <div className="flex items-center space-x-4">
               <span>Encrypted · Private · AES-256-GCM</span>
