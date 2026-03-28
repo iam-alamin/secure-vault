@@ -9,6 +9,7 @@ export interface CredentialRow {
   iv: string;
   auth_tag: string;
   breach_status: 'safe' | 'compromised' | 'unknown';
+  pwned_count: number;
   last_scanned: string | null;
   created_at: string;
   updated_at: string;
@@ -98,4 +99,12 @@ export function updateBreachStatus(
   db.prepare(
     'UPDATE credentials SET breach_status = ?, last_scanned = ?, updated_at = ? WHERE id = ?'
   ).run(status, new Date().toISOString(), new Date().toISOString(), id);
+}
+
+export function updatePwnedCount(id: number, count: number): void {
+  const db = getDB();
+  const status = count > 0 ? 'compromised' : 'safe';
+  db.prepare(
+    'UPDATE credentials SET pwned_count = ?, breach_status = ?, last_scanned = ?, updated_at = ? WHERE id = ?'
+  ).run(count, status, new Date().toISOString(), new Date().toISOString(), id);
 }

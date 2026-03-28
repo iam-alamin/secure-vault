@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
   Table,
@@ -20,6 +20,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import {
   Eye,
@@ -43,15 +45,20 @@ import {
   deleteCredential,
   revealPassword,
   scanBreaches,
+  getMasterPassword,
 } from "@/lib/api";
-import {
-  Credential,
-  getMockCredentials,
-  addMockCredential,
-  updateMockCredential,
-  deleteMockCredential,
-  mockScanBreaches,
-} from "@/lib/mockData";
+
+interface Credential {
+  id: number;
+  site_name: string;
+  site_url: string;
+  username: string;
+  breach_status: 'safe' | 'compromised' | 'unknown';
+  pwned_count?: number;
+  last_scanned: string | null;
+  created_at: string;
+  updated_at: string;
+}
 
 interface VaultTableProps {
   onBreachCountChange?: (count: number) => void;
@@ -63,31 +70,30 @@ const VaultTable = ({ onBreachCountChange }: VaultTableProps) => {
   const [scanning, setScanning] = useState(false);
   const [revealedPasswords, setRevealedPasswords] = useState<Record<number, string>>({});
   const [modalOpen, setModalOpen] = useState(false);
-  const [editingCredential, setEditingCredential] = useState<any>(null);
+  const [editingCredential, setEditingCredential] = useState<Credential | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<number | null>(null);
-  const [isDemo, setIsDemo] = useState(false);
+  const [masterPasswordForScan, setMasterPasswordForScan] = useState<string>("");
+  const [showMasterPasswordPrompt, setShowMasterPasswordPrompt] = useState(false);
   const { toast } = useToast();
 
-  const fetchCredentials = useCallback(async () => {
+  const loadCredentials = useCallback(async () => {
     try {
-      const res = await getCredentials();
-      setCredentials(res.data);
-      setIsDemo(false);
-    } catch {
-      // Fallback to mock data
-      setCredentials(getMockCredentials());
-      setIsDemo(true);
+      const data = await getCredentials();
+      setCredentials(data);
+    } catch (err) {
+      console.error('Failed to load credentials:', err);
+      toast({ title: "Failed to load vault", variant: "destructive" });
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [toast]);
 
   useEffect(() => {
-    fetchCredentials();
-    const handleFocus = () => fetchCredentials();
+    loadCredentials();
+    const handleFocus = () => loadCredentials();
     window.addEventListener("focus", handleFocus);
     return () => window.removeEventListener("focus", handleFocus);
-  }, [fetchCredentials]);
+  }, [loadCredentials]);
 
   useEffect(() => {
     const compromisedCount = credentials.filter(
@@ -107,13 +113,8 @@ const VaultTable = ({ onBreachCountChange }: VaultTableProps) => {
     }
 
     try {
-      if (isDemo) {
-        setRevealedPasswords((prev) => ({ ...prev, [id]: "DemoP@ssw0rd!" }));
-      } else {
-        const res = await revealPassword(id);
-        setRevealedPasswords((prev) => ({ ...prev, [id]: res.data.password }));
-      }
-      // Auto-hide after 10 seconds
+      const res = await revealPassword(id);
+      setRevealedPasswords((prev) => ({ ...prev, [id]: res.password }));
       setTimeout(() => {
         setRevealedPasswords((prev) => {
           const next = { ...prev };
@@ -141,22 +142,36 @@ const VaultTable = ({ onBreachCountChange }: VaultTableProps) => {
   };
 
   const handleScan = async () => {
+    const storedPassword = getMasterPassword();
+    if (storedPassword) {
+      await performScan(storedPassword);
+    } else {
+      setShowMasterPasswordPrompt(true);
+    }
+  };
+
+  const performScan = async (password: string) => {
     setScanning(true);
     try {
-      if (isDemo) {
-        const updated = mockScanBreaches();
-        setCredentials(updated);
-        toast({ title: "Breach scan complete (demo)" });
-      } else {
-        await scanBreaches();
-        await fetchCredentials();
-        toast({ title: "Breach scan complete" });
-      }
-    } catch {
-      toast({ title: "Scan failed", variant: "destructive" });
+      await scanBreaches(password);
+      await loadCredentials();
+      toast({ title: "Breach scan complete" });
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Scan failed";
+      toast({ title: message, variant: "destructive" });
     } finally {
       setScanning(false);
+      setMasterPasswordForScan("");
+      setShowMasterPasswordPrompt(false);
     }
+  };
+
+  const handleScanWithPassword = async () => {
+    if (!masterPasswordForScan) {
+      toast({ title: "Please enter your master password", variant: "destructive" });
+      return;
+    }
+    await performScan(masterPasswordForScan);
   };
 
   const handleSubmit = async (data: {
@@ -168,21 +183,13 @@ const VaultTable = ({ onBreachCountChange }: VaultTableProps) => {
   }) => {
     try {
       if (data.id) {
-        if (isDemo) {
-          updateMockCredential(data.id, data);
-        } else {
-          await updateCredential(data.id, data);
-        }
+        await updateCredential(data.id, data);
         toast({ title: "Credential updated" });
       } else {
-        if (isDemo) {
-          addMockCredential(data);
-        } else {
-          await createCredential(data);
-        }
+        await createCredential(data);
         toast({ title: "Credential saved to vault" });
       }
-      await fetchCredentials();
+      await loadCredentials();
       setEditingCredential(null);
     } catch {
       toast({ title: "Failed to save credential", variant: "destructive" });
@@ -192,13 +199,9 @@ const VaultTable = ({ onBreachCountChange }: VaultTableProps) => {
   const handleDelete = async () => {
     if (!deleteTarget) return;
     try {
-      if (isDemo) {
-        deleteMockCredential(deleteTarget);
-      } else {
-        await deleteCredential(deleteTarget);
-      }
+      await deleteCredential(deleteTarget);
       toast({ title: "Credential deleted" });
-      await fetchCredentials();
+      await loadCredentials();
     } catch {
       toast({ title: "Failed to delete", variant: "destructive" });
     } finally {
@@ -229,6 +232,13 @@ const VaultTable = ({ onBreachCountChange }: VaultTableProps) => {
     }
   };
 
+  const handleEditClick = (cred: Credential) => {
+    // For editing, we need to pass a credential with password field
+    // Since we can't decrypt without master password, we'll handle this differently
+    setEditingCredential(cred);
+    setModalOpen(true);
+  };
+
   return (
     <div className="container mx-auto p-4 sm:p-6 max-w-5xl">
       {/* Header */}
@@ -243,9 +253,8 @@ const VaultTable = ({ onBreachCountChange }: VaultTableProps) => {
           </h2>
           <p className="text-muted-foreground text-sm sm:text-base leading-relaxed">
             Every credential is encrypted with AES-256-GCM before it touches the database. 
-            Only your master password can unlock them. The breach monitor scans your email 
-            addresses against known data leaks every 6 hours — so you know the moment your 
-            defenses are compromised.
+            Only your master password can unlock them. The breach monitor scans your passwords 
+            against known data leaks — so you know the moment your defenses are compromised.
           </p>
         </div>
       </div>
@@ -271,11 +280,6 @@ const VaultTable = ({ onBreachCountChange }: VaultTableProps) => {
           <RefreshCw className={`mr-2 h-4 w-4 ${scanning ? "animate-spin" : ""}`} />
           {scanning ? "Scanning..." : "Scan for Breaches"}
         </Button>
-        {isDemo && (
-          <Badge variant="outline" className="self-center text-warning border-warning/30">
-            Demo Mode
-          </Badge>
-        )}
       </div>
 
       {/* Credentials Table / Cards */}
@@ -370,16 +374,7 @@ const VaultTable = ({ onBreachCountChange }: VaultTableProps) => {
                         <Button
                           variant="ghost"
                           size="icon"
-                          onClick={() => {
-                            setEditingCredential({
-                              id: cred.id,
-                              site_name: cred.site_name,
-                              site_url: cred.site_url,
-                              username: cred.username,
-                              password: revealedPasswords[cred.id] || "",
-                            });
-                            setModalOpen(true);
-                          }}
+                          onClick={() => handleEditClick(cred)}
                           title="Edit"
                         >
                           <Pencil className="h-4 w-4" />
@@ -443,20 +438,7 @@ const VaultTable = ({ onBreachCountChange }: VaultTableProps) => {
                         <Copy className="h-4 w-4" />
                       </Button>
                     )}
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => {
-                        setEditingCredential({
-                          id: cred.id,
-                          site_name: cred.site_name,
-                          site_url: cred.site_url,
-                          username: cred.username,
-                          password: revealedPasswords[cred.id] || "",
-                        });
-                        setModalOpen(true);
-                      }}
-                    >
+                    <Button variant="ghost" size="sm" onClick={() => handleEditClick(cred)}>
                       <Pencil className="h-4 w-4" />
                     </Button>
                     <Button
@@ -478,7 +460,10 @@ const VaultTable = ({ onBreachCountChange }: VaultTableProps) => {
       {/* Add/Edit Modal */}
       <AddCredentialModal
         open={modalOpen}
-        onOpenChange={setModalOpen}
+        onOpenChange={(open) => {
+          setModalOpen(open);
+          if (!open) setEditingCredential(null);
+        }}
         onSubmit={handleSubmit}
         editData={editingCredential}
       />
@@ -499,6 +484,37 @@ const VaultTable = ({ onBreachCountChange }: VaultTableProps) => {
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Master Password Prompt for Scan */}
+      <AlertDialog open={showMasterPasswordPrompt} onOpenChange={setShowMasterPasswordPrompt}>
+        <AlertDialogContent className="bg-card border-terminal-border">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Enter Master Password</AlertDialogTitle>
+            <AlertDialogDescription>
+              Your master password is needed to decrypt credentials for breach scanning.
+              Passwords are checked against the Have I Been Pwned database (free, no data sent except hashed prefix).
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="py-4">
+            <Label htmlFor="masterPassword">Master Password</Label>
+            <Input
+              id="masterPassword"
+              type="password"
+              value={masterPasswordForScan}
+              onChange={(e) => setMasterPasswordForScan(e.target.value)}
+              placeholder="Enter your master password"
+              className="mt-2"
+              onKeyDown={(e) => e.key === "Enter" && handleScanWithPassword()}
+            />
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setMasterPasswordForScan("")}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleScanWithPassword}>
+              Scan for Breaches
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

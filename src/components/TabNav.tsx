@@ -1,7 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useState } from "react";
-import { Vault, KeyRound, Target } from "lucide-react";
+import { Vault, Search } from "lucide-react";
 
 interface TabNavProps {
   currentTab: number;
@@ -22,18 +22,11 @@ const TabNav = ({ currentTab, onTabChange, breachCount = 0 }: TabNavProps) => {
       icon: Vault,
     },
     { 
-      name: "Password Forge", 
-      shortName: "Generator",
-      description: "Forge unbreakable passwords",
-      story: "Craft weapons that guard your digital fortress",
-      icon: KeyRound,
-    },
-    { 
-      name: "Strength Analyzer", 
-      shortName: "Analyzer",
-      description: "Analyze password strength",
-      story: "Test your defenses before the enemy strikes",
-      icon: Target,
+      name: "Email Breach Lookup", 
+      shortName: "Lookup",
+      description: "Check if your email was compromised",
+      story: "Find out if your digital identity has been exposed",
+      icon: Search,
     }
   ];
 

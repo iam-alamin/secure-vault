@@ -35,11 +35,19 @@ export function initDB(): void {
       iv TEXT NOT NULL,
       auth_tag TEXT NOT NULL,
       breach_status TEXT NOT NULL DEFAULT 'unknown' CHECK (breach_status IN ('safe', 'compromised', 'unknown')),
+      pwned_count INTEGER DEFAULT 0,
       last_scanned TEXT,
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       updated_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
   `);
+
+  // Migration: Add pwned_count column if it doesn't exist
+  try {
+    database.exec(`ALTER TABLE credentials ADD COLUMN pwned_count INTEGER DEFAULT 0`);
+  } catch (e) {
+    // Column already exists, ignore
+  }
 
   console.log('[DB] SQLite tables initialized');
 }

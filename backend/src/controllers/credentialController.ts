@@ -19,7 +19,7 @@ export function create(req: AuthRequest, res: Response): void {
     return;
   }
 
-  const masterPassword = req.user!.masterPassword;
+  const masterPassword = req.user!.masterPassword as string;
   const { ciphertext, iv, authTag } = encrypt(password, masterPassword);
 
   const credential = vault.create({
@@ -36,7 +36,8 @@ export function create(req: AuthRequest, res: Response): void {
 }
 
 export function update(req: AuthRequest, res: Response): void {
-  const id = parseInt(req.params.id, 10);
+  const idParam = req.params.id;
+  const id = parseInt(Array.isArray(idParam) ? idParam[0] : idParam, 10);
   const { site_name, site_url, username, password } = req.body;
 
   const existing = vault.getById(id);
@@ -51,7 +52,7 @@ export function update(req: AuthRequest, res: Response): void {
   if (username !== undefined) updateData.username = username;
 
   if (password) {
-    const masterPassword = req.user!.masterPassword;
+    const masterPassword = req.user!.masterPassword as string;
     const { ciphertext, iv, authTag } = encrypt(password, masterPassword);
     updateData.encrypted_password = ciphertext;
     updateData.iv = iv;
@@ -69,7 +70,8 @@ export function update(req: AuthRequest, res: Response): void {
 }
 
 export function remove(req: AuthRequest, res: Response): void {
-  const id = parseInt(req.params.id, 10);
+  const idParam = req.params.id;
+  const id = parseInt(Array.isArray(idParam) ? idParam[0] : idParam, 10);
   const deleted = vault.deleteById(id);
 
   if (!deleted) {
@@ -81,7 +83,8 @@ export function remove(req: AuthRequest, res: Response): void {
 }
 
 export function reveal(req: AuthRequest, res: Response): void {
-  const id = parseInt(req.params.id, 10);
+  const idParam = req.params.id;
+  const id = parseInt(Array.isArray(idParam) ? idParam[0] : idParam, 10);
   const credential = vault.getById(id);
 
   if (!credential) {
@@ -90,7 +93,7 @@ export function reveal(req: AuthRequest, res: Response): void {
   }
 
   try {
-    const masterPassword = req.user!.masterPassword;
+    const masterPassword = req.user!.masterPassword as string;
     const password = decrypt(
       credential.encrypted_password,
       credential.iv,

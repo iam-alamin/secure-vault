@@ -1,10 +1,16 @@
 import { useState, useCallback } from "react";
+import { Button } from "@/components/ui/button";
 import TabNav from "@/components/TabNav";
 import VaultTable from "@/components/VaultTable";
-import PasswordGenerator from "@/components/PasswordGenerator";
-import PasswordStrengthChecker from "@/components/PasswordStrengthChecker";
+import EmailLookup from "@/components/EmailLookup";
+import { clearToken } from "@/lib/api";
+import { Lock } from "lucide-react";
 
-const Index = () => {
+interface IndexProps {
+  onLogout?: () => void;
+}
+
+const Index = ({ onLogout }: IndexProps) => {
   const [currentTab, setCurrentTab] = useState(0);
   const [breachCount, setBreachCount] = useState(0);
 
@@ -12,14 +18,19 @@ const Index = () => {
     setBreachCount(count);
   }, []);
 
+  const handleLockVault = () => {
+    clearToken();
+    if (onLogout) {
+      onLogout();
+    }
+  };
+
   const renderCurrentTab = () => {
     switch (currentTab) {
       case 0:
         return <VaultTable onBreachCountChange={handleBreachCountChange} />;
       case 1:
-        return <PasswordGenerator />;
-      case 2:
-        return <PasswordStrengthChecker />;
+        return <EmailLookup />;
       default:
         return <VaultTable onBreachCountChange={handleBreachCountChange} />;
     }
@@ -37,11 +48,21 @@ const Index = () => {
           <div className="flex flex-col sm:flex-row justify-between items-center text-sm text-muted-foreground gap-2">
             <div className="flex items-center space-x-4">
               <span className="text-primary pulse-glow">◉</span>
-              <span>SecureVault v2.0</span>
+              <span>AlamiNVault v2.0</span>
             </div>
             <div className="flex items-center space-x-4">
               <span>Encrypted · Private · AES-256-GCM</span>
               <span className="text-success animate-glow-pulse">●</span>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleLockVault}
+                className="ml-4 text-muted-foreground hover:text-primary"
+                title="Lock Vault"
+              >
+                <Lock className="w-4 h-4 mr-1" />
+                Lock
+              </Button>
             </div>
           </div>
         </div>
