@@ -250,14 +250,17 @@ const VaultTable = ({ onBreachCountChange }: VaultTableProps) => {
     setModalOpen(true);
   };
 
-  const getHoursSinceSync = (): string => {
+  const getTimeSinceSync = (): string => {
     if (!lastSyncTime) return "Never";
     
     const now = new Date();
     const diffMs = now.getTime() - lastSyncTime.getTime();
+    const diffMinutes = Math.floor(diffMs / (1000 * 60));
     const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
     
-    if (diffHours === 0) return "Just now";
+    if (diffMinutes === 0) return "Just now";
+    if (diffMinutes === 1) return "1 min ago";
+    if (diffMinutes < 60) return `${diffMinutes} mins ago`;
     if (diffHours === 1) return "1 hour ago";
     return `${diffHours} hours ago`;
   };
@@ -309,7 +312,7 @@ const VaultTable = ({ onBreachCountChange }: VaultTableProps) => {
             <p className="text-xs text-muted-foreground uppercase tracking-wide font-semibold">Last Synced</p>
           </div>
           <p className="text-lg font-mono font-semibold text-accent">
-            {getHoursSinceSync()}
+            {getTimeSinceSync()}
           </p>
         </div>
       </div>
