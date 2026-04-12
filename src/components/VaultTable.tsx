@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Clock } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -74,12 +75,15 @@ const VaultTable = ({ onBreachCountChange }: VaultTableProps) => {
   const [deleteTarget, setDeleteTarget] = useState<number | null>(null);
   const [masterPasswordForScan, setMasterPasswordForScan] = useState<string>("");
   const [showMasterPasswordPrompt, setShowMasterPasswordPrompt] = useState(false);
+  const [currentTime, setCurrentTime] = useState(new Date());
+  const [lastSyncTime, setLastSyncTime] = useState<Date | null>(null);
   const { toast } = useToast();
 
   const loadCredentials = useCallback(async () => {
     try {
       const data = await getCredentials();
       setCredentials(data);
+      setLastSyncTime(new Date());
     } catch (err) {
       console.error('Failed to load credentials:', err);
       toast({ title: "Failed to load vault", variant: "destructive" });
@@ -87,6 +91,13 @@ const VaultTable = ({ onBreachCountChange }: VaultTableProps) => {
       setLoading(false);
     }
   }, [toast]);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
 
   useEffect(() => {
     loadCredentials();
@@ -239,6 +250,18 @@ const VaultTable = ({ onBreachCountChange }: VaultTableProps) => {
     setModalOpen(true);
   };
 
+  const getHoursSinceSync = (): string => {
+    if (!lastSyncTime) return "Never";
+    
+    const now = new Date();
+    const diffMs = now.getTime() - lastSyncTime.getTime();
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+    
+    if (diffHours === 0) return "Just now";
+    if (diffHours === 1) return "1 hour ago";
+    return `${diffHours} hours ago`;
+  };
+
   return (
     <div className="container mx-auto p-4 sm:p-6 max-w-5xl">
       {/* Header */}
@@ -255,6 +278,38 @@ const VaultTable = ({ onBreachCountChange }: VaultTableProps) => {
             Every credential is encrypted with AES-256-GCM before it touches the database. 
             Only your master password can unlock them. The breach monitor scans your passwords 
             against known data leaks — so you know the moment your defenses are compromised.
+          </p>
+        </div>
+      </div>
+
+      {/* Timestamp Bar */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4 p-4 bg-card border border-terminal-border rounded-lg">
+        <div>
+          <p className="text-xs text-muted-foreground uppercase tracking-wide font-semibold">Current Time</p>
+          <p className="text-lg font-mono font-semibold text-primary mt-1">
+            {currentTime.toLocaleTimeString('en-US', { 
+              hour: '2-digit', 
+              minute: '2-digit', 
+              second: '2-digit',
+              hour12: true
+            })}
+          </p>
+          <p className="text-sm text-muted-foreground font-mono">
+            {currentTime.toLocaleDateString('en-US', { 
+              weekday: 'short', 
+              month: 'short', 
+              day: 'numeric', 
+              year: 'numeric' 
+            })}
+          </p>
+        </div>
+        <div className="text-left sm:text-right">
+          <div className="flex items-center gap-2 sm:justify-end mb-2">
+            <Clock className="w-4 h-4 text-accent" />
+            <p className="text-xs text-muted-foreground uppercase tracking-wide font-semibold">Last Synced</p>
+          </div>
+          <p className="text-lg font-mono font-semibold text-accent">
+            {getHoursSinceSync()}
           </p>
         </div>
       </div>
