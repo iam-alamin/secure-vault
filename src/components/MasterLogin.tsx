@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -18,6 +19,7 @@ const MasterLogin = ({ isFirstRun, onAuthenticated }: MasterLoginProps) => {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [showHowItWorks, setShowHowItWorks] = useState(false);
   const { toast } = useToast();
 
   const getStrengthScore = (pwd: string): number => {
@@ -124,7 +126,7 @@ const MasterLogin = ({ isFirstRun, onAuthenticated }: MasterLoginProps) => {
                     className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
                     onClick={() => setShowPassword(!showPassword)}
                   >
-                    {showPassword ? <EyeOff className="h-4 w-4 text-muted-foreground" /> : <Eye className="h-4 w-4 text-muted-foreground" />}
+                    {showPassword ? <Eye className="h-4 w-4 text-muted-foreground" /> : <EyeOff className="h-4 w-4 text-muted-foreground" />}
                   </Button>
                 </div>
               </div>
@@ -187,6 +189,58 @@ const MasterLogin = ({ isFirstRun, onAuthenticated }: MasterLoginProps) => {
             </div>
           </CardContent>
         </Card>
+
+          {/* How it works button, fixed to bottom right */}
+          <button
+            type="button"
+            className="fixed bottom-4 right-4 z-50 px-4 py-2 rounded-full bg-primary text-primary-foreground shadow-lg hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all text-sm md:text-base"
+            style={{ minWidth: 120 }}
+            onClick={() => setShowHowItWorks(true)}
+          >
+            How it works
+          </button>
+
+          {/* How it works modal */}
+          <Dialog open={showHowItWorks} onOpenChange={setShowHowItWorks}>
+            <DialogContent className="max-w-lg w-[90vw] md:w-full rounded-xl p-0 flex flex-col max-h-[90vh] md:max-h-[85vh]">
+              <DialogHeader className="p-6 pb-2 border-b border-border bg-background flex-shrink-0">
+                <DialogTitle className="text-xl flex items-center gap-2">
+                  <Shield className="w-5 h-5 text-primary" />
+                  How AlamiNVault Works
+                </DialogTitle>
+                <DialogDescription className="mt-2 text-muted-foreground">
+                  Secure your passwords with a single master password. Here’s how to get started:
+                </DialogDescription>
+              </DialogHeader>
+              <div className="flex-1 overflow-y-auto p-6 space-y-4 text-sm md:text-base">
+                <ol className="list-decimal list-inside space-y-2">
+                  <li>
+                    <span className="font-semibold">Create a Master Password:</span> On first use, set a strong master password. This password is never stored—only a cryptographic hash is kept. <span className="text-warning">If you forget it, your data cannot be recovered.</span>
+                  </li>
+                  <li>
+                    <span className="font-semibold">Unlock Your Vault:</span> On subsequent visits, enter your master password to decrypt and access your saved credentials.
+                  </li>
+                  <li>
+                    <span className="font-semibold">Add Credentials:</span> Save your website logins and other secrets. All data is encrypted locally using AES-256-GCM derived from your master password.
+                  </li>
+                  <li>
+                    <span className="font-semibold">Security:</span> Your master password is never sent to any server. All encryption and decryption happen on your device.
+                  </li>
+                  <li>
+                    <span className="font-semibold">Recovery:</span> There is <span className="text-error font-semibold">no recovery</span> if you lose your master password. Make sure to remember it!
+                  </li>
+                </ol>
+                <div className="mt-4 text-xs text-muted-foreground">
+                  <span className="font-semibold">Tip:</span> Use a long, unique passphrase for maximum security. Avoid reusing passwords from other sites.
+                </div>
+              </div>
+              <DialogFooter className="p-4 border-t border-border bg-muted flex justify-end flex-shrink-0">
+                <Button type="button" variant="secondary" onClick={() => setShowHowItWorks(false)}>
+                  Close
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
       </div>
     </div>
   );
