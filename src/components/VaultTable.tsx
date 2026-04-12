@@ -414,9 +414,9 @@ const VaultTable = ({ onBreachCountChange }: VaultTableProps) => {
                           title={revealedPasswords[cred.id] ? "Hide" : "Reveal"}
                         >
                           {revealedPasswords[cred.id] ? (
-                            <EyeOff className="h-4 w-4" />
-                          ) : (
                             <Eye className="h-4 w-4" />
+                          ) : (
+                            <EyeOff className="h-4 w-4" />
                           )}
                         </Button>
                         {revealedPasswords[cred.id] && (
@@ -489,7 +489,7 @@ const VaultTable = ({ onBreachCountChange }: VaultTableProps) => {
                   </div>
                   <div className="flex gap-1">
                     <Button variant="ghost" size="sm" onClick={() => handleReveal(cred.id)}>
-                      {revealedPasswords[cred.id] ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      {revealedPasswords[cred.id] ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
                     </Button>
                     {revealedPasswords[cred.id] && (
                       <Button variant="ghost" size="sm" onClick={() => handleCopyPassword(cred.id)}>
