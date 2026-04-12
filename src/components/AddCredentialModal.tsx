@@ -352,6 +352,8 @@ const AddCredentialModal = ({
                   className="terminal-glow shrink-0"
                   title="Generate password"
                 >
+                                <p>Generate</p>
+
                   <RefreshCw className="h-4 w-4" />
                 </Button>
               </div>
