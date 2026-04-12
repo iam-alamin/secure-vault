@@ -101,10 +101,7 @@ const VaultTable = ({ onBreachCountChange }: VaultTableProps) => {
 
   useEffect(() => {
     loadCredentials();
-    const handleFocus = () => loadCredentials();
-    window.addEventListener("focus", handleFocus);
-    return () => window.removeEventListener("focus", handleFocus);
-  }, [loadCredentials]);
+  }, []);
 
   useEffect(() => {
     const compromisedCount = credentials.filter(
@@ -250,19 +247,24 @@ const VaultTable = ({ onBreachCountChange }: VaultTableProps) => {
     setModalOpen(true);
   };
 
-  const getTimeSinceSync = (): string => {
+  const getLastSyncTime = (): string => {
     if (!lastSyncTime) return "Never";
-    
+    return lastSyncTime.toLocaleTimeString('en-US', { 
+      hour: '2-digit', 
+      minute: '2-digit', 
+      second: '2-digit',
+      hour12: true
+    });
+  };
+
+  const getLastSyncElapsed = (): string => {
+    if (!lastSyncTime) return "-";
     const now = new Date();
     const diffMs = now.getTime() - lastSyncTime.getTime();
-    const diffMinutes = Math.floor(diffMs / (1000 * 60));
-    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
-    
-    if (diffMinutes === 0) return "Just now";
-    if (diffMinutes === 1) return "1 min ago";
-    if (diffMinutes < 60) return `${diffMinutes} mins ago`;
-    if (diffHours === 1) return "1 hour ago";
-    return `${diffHours} hours ago`;
+    const diffMins = Math.floor(diffMs / (1000 * 60));
+    const diffHours = Math.floor(diffMins / 60);
+    const mins = diffMins % 60;
+    return `${diffHours}h ${mins}m ago`;
   };
 
   return (
@@ -286,33 +288,17 @@ const VaultTable = ({ onBreachCountChange }: VaultTableProps) => {
       </div>
 
       {/* Timestamp Bar */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4 p-4 bg-card border border-terminal-border rounded-lg">
-        <div>
-          <p className="text-xs text-muted-foreground uppercase tracking-wide font-semibold">Current Time</p>
-          <p className="text-lg font-mono font-semibold text-primary mt-1">
-            {currentTime.toLocaleTimeString('en-US', { 
-              hour: '2-digit', 
-              minute: '2-digit', 
-              second: '2-digit',
-              hour12: true
-            })}
-          </p>
-          <p className="text-sm text-muted-foreground font-mono">
-            {currentTime.toLocaleDateString('en-US', { 
-              weekday: 'short', 
-              month: 'short', 
-              day: 'numeric', 
-              year: 'numeric' 
-            })}
-          </p>
-        </div>
+      <div className="max-w-xs ml-auto mb-6 p-4 bg-card border border-terminal-border rounded-lg">
         <div className="text-left sm:text-right">
           <div className="flex items-center gap-2 sm:justify-end mb-2">
             <Clock className="w-4 h-4 text-accent" />
             <p className="text-xs text-muted-foreground uppercase tracking-wide font-semibold">Last Synced</p>
           </div>
           <p className="text-lg font-mono font-semibold text-accent">
-            {getTimeSinceSync()}
+            {getLastSyncTime()}
+          </p>
+          <p className="text-sm text-muted-foreground font-mono">
+            {getLastSyncElapsed()}
           </p>
         </div>
       </div>
