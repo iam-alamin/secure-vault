@@ -16,6 +16,7 @@ const App = () => {
   const [isFirstRun, setIsFirstRun] = useState(true);
   const [checking, setChecking] = useState(true);
   const [initError, setInitError] = useState<string | null>(null);
+  const [triggerScan, setTriggerScan] = useState(false);
 
   useEffect(() => {
     // Initialize IndexedDB first
@@ -37,11 +38,14 @@ const App = () => {
   const handleAuthenticated = (newToken: string, password: string) => {
     setToken(newToken);
     setMasterPassword(password);
+    // Trigger scan after successful authentication
+    setTriggerScan(true);
   };
 
   const handleLogout = () => {
     setToken(null);
     setMasterPassword('');
+    setTriggerScan(false);
   };
 
   if (checking) {
@@ -77,7 +81,7 @@ const App = () => {
         <Sonner />
         <BrowserRouter>
           <Routes>
-            <Route path="/" element={<Index onLogout={handleLogout} />} />
+            <Route path="/" element={<Index onLogout={handleLogout} triggerScan={triggerScan} />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>

@@ -59,13 +59,15 @@ interface Credential {
   last_scanned: string | null;
   created_at: string;
   updated_at: string;
+  password?: string; // Optional decrypted password for editing
 }
 
 interface VaultTableProps {
   onBreachCountChange?: (count: number) => void;
+  triggerScan?: boolean;
 }
 
-const VaultTable = ({ onBreachCountChange }: VaultTableProps) => {
+const VaultTable = ({ onBreachCountChange, triggerScan }: VaultTableProps) => {
   const [credentials, setCredentials] = useState<Credential[]>([]);
   const [loading, setLoading] = useState(true);
   const [scanning, setScanning] = useState(false);
@@ -101,7 +103,20 @@ const VaultTable = ({ onBreachCountChange }: VaultTableProps) => {
 
   useEffect(() => {
     loadCredentials();
-  }, []);
+  }, [loadCredentials]);
+
+  // Auto-trigger scan on login
+  useEffect(() => {
+    if (triggerScan && !loading && !scanning) {
+      console.log('Auto-triggering breach scan on login...');
+      const storedPassword = getMasterPassword();
+      if (storedPassword) {
+        performScan(storedPassword).catch(err => {
+          console.error('Auto-scan failed:', err);
+        });
+      }
+    }
+  }, [triggerScan]);
 
   useEffect(() => {
     const compromisedCount = credentials.filter(
@@ -161,12 +176,23 @@ const VaultTable = ({ onBreachCountChange }: VaultTableProps) => {
   const performScan = async (password: string) => {
     setScanning(true);
     try {
+      console.log('Starting breach scan...');
       await scanBreaches(password);
+      console.log('Breach scan completed, reloading credentials...');
       await loadCredentials();
-      toast({ title: "Breach scan complete" });
+      toast({ 
+        title: "Breach scan complete", 
+        description: "Your credentials have been checked against known breaches"
+      });
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Scan failed";
-      toast({ title: message, variant: "destructive" });
+      console.error('Scan error:', err);
+      // Show warning instead of error - scan may have partially succeeded
+      toast({ 
+        title: "Scan completed with issues",
+        description: `Some credentials couldn't be checked. ${message}`,
+        variant: "default" 
+      });
     } finally {
       setScanning(false);
       setMasterPasswordForScan("");
@@ -240,11 +266,23 @@ const VaultTable = ({ onBreachCountChange }: VaultTableProps) => {
     }
   };
 
-  const handleEditClick = (cred: Credential) => {
-    // For editing, we need to pass a credential with password field
-    // Since we can't decrypt without master password, we'll handle this differently
-    setEditingCredential(cred);
-    setModalOpen(true);
+  const handleEditClick = async (cred: Credential) => {
+    try {
+      // Decrypt password before opening edit modal
+      const res = await revealPassword(cred.id);
+      setEditingCredential({
+        ...cred,
+        password: res.password, // Add decrypted password to credential object
+      });
+      setModalOpen(true);
+    } catch (err) {
+      console.error('Failed to decrypt credential for editing:', err);
+      toast({ 
+        title: "Failed to load credential", 
+        description: "Could not decrypt password. Try revealing first.",
+        variant: "destructive" 
+      });
+    }
   };
 
   const getLastSyncTime = (): string => {
@@ -294,9 +332,6 @@ const VaultTable = ({ onBreachCountChange }: VaultTableProps) => {
             <Clock className="w-4 h-4 text-accent" />
             <p className="text-xs text-muted-foreground uppercase tracking-wide font-semibold">Last Synced</p>
           </div>
-          <p className="text-lg font-mono font-semibold text-accent">
-            {getLastSyncTime()}
-          </p>
           <p className="text-sm text-muted-foreground font-mono">
             {getLastSyncElapsed()}
           </p>

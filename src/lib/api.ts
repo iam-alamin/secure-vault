@@ -165,7 +165,7 @@ export async function revealPassword(id: number): Promise<{ password: string }> 
 // Breach API
 
 /**
- * Scan all credentials for breaches
+ * Scan all credentials for breaches with retry logic and exponential backoff
  */
 export async function scanBreaches(masterPasswordParam?: string): Promise<void> {
   // Use provided password or stored one
@@ -175,23 +175,55 @@ export async function scanBreaches(masterPasswordParam?: string): Promise<void> 
   }
 
   const credentials = await getAllCredentials();
+  let successCount = 0;
+  let failureCount = 0;
   
   for (const cred of credentials) {
     if (!cred.id) continue;
+    
     try {
       // Decrypt password to check it
       const decryptedPassword = await revealPasswordFromDB(cred.id, password);
       
-      // Check against HIBP
-      const pwnedCount = await checkPasswordBreach(decryptedPassword);
+      // Check against HIBP with retry logic
+      let pwnedCount = 0;
+      let retries = 3;
+      let lastError: Error | null = null;
+      
+      while (retries > 0) {
+        try {
+          pwnedCount = await checkPasswordBreach(decryptedPassword);
+          lastError = null;
+          break; // Success
+        } catch (error) {
+          lastError = error as Error;
+          retries--;
+          if (retries > 0) {
+            // Exponential backoff: 1s, 2s, 3s
+            const delay = (4 - retries) * 1000;
+            console.warn(`Breach check failed, retrying in ${delay}ms...`, error);
+            await new Promise(resolve => setTimeout(resolve, delay));
+          }
+        }
+      }
+      
+      if (lastError && retries === 0) {
+        console.error(`Failed to check credential ${cred.id} after 3 retries:`, lastError);
+        failureCount++;
+        continue; // Skip updating this credential
+      }
       
       // Update breach status
       const status = pwnedCount > 0 ? 'compromised' : 'safe';
       await updateBreachStatus(cred.id, status, pwnedCount);
+      successCount++;
     } catch (error) {
       console.error(`Error scanning credential ${cred.id}:`, error);
+      failureCount++;
     }
   }
+  
+  console.log(`Breach scan completed: ${successCount} checked, ${failureCount} failed`);
 }
 
 /**

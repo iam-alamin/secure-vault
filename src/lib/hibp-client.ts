@@ -2,9 +2,20 @@
  * Have I Been Pwned Client (Frontend Version)
  * Uses k-Anonymity for privacy-preserving password checks
  * Free API - no key required
+ * 
+ * Multiple CORS proxies with fallback for reliability
  */
 
-const PWNED_API_BASE = 'https://corsproxy.io/?https://api.pwnedpasswords.com';
+// Multiple CORS proxy options with fallback
+const CORS_PROXIES = [
+  'https://corsproxy.io/?',
+  'https://api.allorigins.win/raw?url=',
+  'https://cors-anywhere.herokuapp.com/',
+];
+
+const HIBP_API_URL = 'https://api.pwnedpasswords.com/range/';
+
+let currentProxyIndex = 0;
 
 /**
  * Check if a password has been breached using k-Anonymity
@@ -23,30 +34,65 @@ export async function checkPasswordBreach(password: string): Promise<number> {
   const prefix = hashHex.substring(0, 5);
   const suffix = hashHex.substring(5);
 
-  // Query the API with only the prefix (k-Anonymity)
-  const response = await fetch(`${PWNED_API_BASE}/range/${prefix}`, {
-    headers: {
-      // No custom headers to avoid CORS issues
-    },
-  });
+  // Add delay to avoid rate limiting
+  await new Promise(resolve => setTimeout(resolve, 500));
 
-  if (!response.ok) {
-    throw new Error(`HIBP API error: ${response.status}`);
-  }
+  // Try with current proxy, with fallback to other proxies
+  let lastError: Error | null = null;
+  
+  for (let i = 0; i < CORS_PROXIES.length; i++) {
+    try {
+      const proxyUrl = CORS_PROXIES[(currentProxyIndex + i) % CORS_PROXIES.length];
+      const fullUrl = proxyUrl.includes('url=') 
+        ? `${proxyUrl}${HIBP_API_URL}${prefix}`
+        : `${proxyUrl}${HIBP_API_URL}${prefix}`;
+      
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+      
+      const response = await fetch(fullUrl, {
+        method: 'GET',
+        headers: {
+          'User-Agent': 'SecureVault-PasswordChecker',
+        },
+        signal: controller.signal,
+      });
+      
+      clearTimeout(timeoutId);
 
-  const text = await response.text();
-  const lines = text.split('\n');
+      if (!response.ok) {
+        throw new Error(`HIBP API error: ${response.status}`);
+      }
 
-  // Look for our suffix in the response
-  for (const line of lines) {
-    const [hashSuffix, count] = line.split(':');
-    if (hashSuffix.trim() === suffix) {
-      return parseInt(count.trim(), 10);
+      const text = await response.text();
+      const lines = text.split('\n');
+
+      // Look for our suffix in the response
+      for (const line of lines) {
+        const [hashSuffix, count] = line.split(':');
+        if (hashSuffix && hashSuffix.trim() === suffix) {
+          // Update current proxy index for next request
+          currentProxyIndex = (currentProxyIndex + i) % CORS_PROXIES.length;
+          return parseInt(count.trim(), 10);
+        }
+      }
+
+      // Password not found in any breach
+      currentProxyIndex = (currentProxyIndex + i) % CORS_PROXIES.length;
+      return 0;
+    } catch (error) {
+      lastError = error as Error;
+      console.warn(`Proxy attempt ${i + 1} failed (${CORS_PROXIES[(currentProxyIndex + i) % CORS_PROXIES.length]}):`, lastError.message);
+      
+      // Don't retry immediately, add delay between proxy attempts
+      if (i < CORS_PROXIES.length - 1) {
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      }
     }
   }
 
-  // Password not found in any breach
-  return 0;
+  // All proxies failed
+  throw lastError || new Error('All CORS proxies failed');
 }
 
 /**
