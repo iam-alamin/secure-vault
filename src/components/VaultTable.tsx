@@ -65,9 +65,10 @@ interface Credential {
 interface VaultTableProps {
   onBreachCountChange?: (count: number) => void;
   triggerScan?: boolean;
+  onScanTriggered?: () => void;
 }
 
-const VaultTable = ({ onBreachCountChange, triggerScan }: VaultTableProps) => {
+const VaultTable = ({ onBreachCountChange, triggerScan, onScanTriggered }: VaultTableProps) => {
   const [credentials, setCredentials] = useState<Credential[]>([]);
   const [loading, setLoading] = useState(true);
   const [scanning, setScanning] = useState(false);
@@ -107,16 +108,21 @@ const VaultTable = ({ onBreachCountChange, triggerScan }: VaultTableProps) => {
 
   // Auto-trigger scan on login
   useEffect(() => {
-    if (triggerScan && !loading && !scanning) {
+    if (triggerScan && credentials.length > 0 && !scanning) {
       console.log('Auto-triggering breach scan on login...');
       const storedPassword = getMasterPassword();
       if (storedPassword) {
-        performScan(storedPassword).catch(err => {
-          console.error('Auto-scan failed:', err);
-        });
+        performScan(storedPassword)
+          .catch(err => {
+            console.error('Auto-scan failed:', err);
+          })
+          .finally(() => {
+            // Reset the trigger flag after scan completes
+            onScanTriggered?.();
+          });
       }
     }
-  }, [triggerScan]);
+  }, [triggerScan, credentials.length, scanning, onScanTriggered]);
 
   useEffect(() => {
     const compromisedCount = credentials.filter(
@@ -180,6 +186,8 @@ const VaultTable = ({ onBreachCountChange, triggerScan }: VaultTableProps) => {
       await scanBreaches(password);
       console.log('Breach scan completed, reloading credentials...');
       await loadCredentials();
+      // Update sync time to current time after scan
+      setLastSyncTime(new Date());
       toast({ 
         title: "Breach scan complete", 
         description: "Your credentials have been checked against known breaches"

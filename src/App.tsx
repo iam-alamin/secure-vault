@@ -48,6 +48,11 @@ const App = () => {
     setTriggerScan(false);
   };
 
+  const handleScanTriggered = () => {
+    // Reset trigger flag after scan completes
+    setTriggerScan(false);
+  };
+
   if (checking) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -81,7 +86,7 @@ const App = () => {
         <Sonner />
         <BrowserRouter>
           <Routes>
-            <Route path="/" element={<Index onLogout={handleLogout} triggerScan={triggerScan} />} />
+            <Route path="/" element={<Index onLogout={handleLogout} triggerScan={triggerScan} onScanTriggered={handleScanTriggered} />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>

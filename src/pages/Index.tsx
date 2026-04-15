@@ -9,9 +9,10 @@ import { Lock } from "lucide-react";
 interface IndexProps {
   onLogout?: () => void;
   triggerScan?: boolean;
+  onScanTriggered?: () => void;
 }
 
-const Index = ({ onLogout, triggerScan }: IndexProps) => {
+const Index = ({ onLogout, triggerScan, onScanTriggered }: IndexProps) => {
   const [currentTab, setCurrentTab] = useState(0);
   const [breachCount, setBreachCount] = useState(0);
 
@@ -29,11 +30,11 @@ const Index = ({ onLogout, triggerScan }: IndexProps) => {
   const renderCurrentTab = () => {
     switch (currentTab) {
       case 0:
-        return <VaultTable onBreachCountChange={handleBreachCountChange} triggerScan={triggerScan} />;
+        return <VaultTable onBreachCountChange={handleBreachCountChange} triggerScan={triggerScan} onScanTriggered={onScanTriggered} />;
       case 1:
         return <EmailLookup />;
       default:
-        return <VaultTable onBreachCountChange={handleBreachCountChange} triggerScan={triggerScan} />;
+        return <VaultTable onBreachCountChange={handleBreachCountChange} triggerScan={triggerScan} onScanTriggered={onScanTriggered} />;
     }
   };
 
